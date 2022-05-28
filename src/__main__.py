@@ -34,10 +34,10 @@ def translate_song_metadata(path):
     song = FLAC(path)
     t = Translator()
 
-    for t in TAGS_TO_TRANSLATE:
-        if t in song.tags:
-            for i in range(len(song[t])):
-                song[t][i] = t.translate(song[t][i])
+    for tag in TAGS_TO_TRANSLATE:
+        if tag in song.tags:
+            translated_tag = t.translate(song[tag][0]).text
+            song[tag] = translated_tag
     
     song.save()
 
@@ -52,12 +52,24 @@ def translate_album(path):
     album_location = os.path.dirname(path)
     translated_album_name = t.translate(album_name).text
     translated_path = os.path.join(album_location, translated_album_name)
-    os.mkdir(translated_path)
+
+    if translated_path == path:
+        return
+    if not os.path.exists(translated_path):
+        os.mkdir(translated_path)
 
     # now fill the directory with translated songs
     print("> Translating", album_name, "into", translated_album_name)
     for song in tqdm(os.listdir(path)):
-        translated_song_path = os.path.join(translated_path, t.translate(song).text)
+        assert ".flac" in song, "This tool only translates FLAC files!"
+        song_name = song[:-5]
+
+        translated_song_path = os.path.join(translated_path, t.translate(song_name).text) + '.flac'
+        translated_song_path = translated_song_path.replace(':', '-')
+
+        if os.path.exists(translated_song_path):
+            continue
+
         shutil.copy(os.path.join(path, song), translated_song_path)
         translate_song_metadata(translated_song_path)
 
@@ -66,7 +78,7 @@ def main():
     albums = get_albums()
 
     print ("translating albums...")
-    for album in tqdm(albums):
+    for album in albums:
         translate_album(album)
     
 
